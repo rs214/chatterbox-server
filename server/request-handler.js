@@ -18,6 +18,10 @@ var defaultCorsHeaders = {
   'access-control-max-age': 10 // Seconds.
 };
 
+var message = {
+  results: []
+};
+
 var requestHandler = function(request, response) {
   // Request and Response come from node's http module.
   //
@@ -31,8 +35,6 @@ var requestHandler = function(request, response) {
   // Do some basic logging.
   // request.method
   // request.url
-  console.log(request, '======= request');
-
   //
   // Adding more logging to your server can be an easy way to get passive
   // debugging help, but you should always be careful about leaving stray
@@ -45,31 +47,35 @@ var requestHandler = function(request, response) {
   // See the note below about CORS headers.
   var headers = defaultCorsHeaders;
 
-  var message = {
-    results: []
-  };
-
   // Tell the client we are sending them plain text.
   //
   // You will need to change this if you are sending something
   // other than plain text, like JSON or HTML.
   headers['Content-Type'] = 'text/plain';
 
-  if (request.method === 'GET') {
-    statusCode = 200;
+  if (request.method === 'GET' && request.url === '/classes/messages') {
+    response.writeHead(200, headers);
     response.end(JSON.stringify(message));
-  } else if (request.method === 'POST') {
-    statusCode = 201;
-    message.results.push(request._postData);
-    console.log(message.results, 'updated array');
-    response.end(JSON.stringify(message));
+  } else if (request.method === 'POST' && request.url === '/classes/messages') {
+    var chunkie = '';
+    request.on('data', function(chunk) {
+      chunkie += chunk;
+    });
+    request.on('end', function() {
+      chunkie = JSON.parse(chunkie);
+      message.results.push(chunkie);
+      response.writeHead(201, headers);
+      response.end(JSON.stringify(message));
+    });
+  } else {
+    response.writeHead(404, headers);
+    response.end();
   }
+
 
 
   // .writeHead() writes to the request line and headers of the response,
   // which includes the status and all headers.
-  response.writeHead(statusCode, headers);
-
   // Make sure to always call response.end() - Node may not send
   // anything back to the client until you do. The string you pass to
   // response.end() will be the body of the response - i.e. what shows
